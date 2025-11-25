@@ -38,7 +38,7 @@ def setting_conversation(inputted_lang, targeted_lang, flag):
         text_to_voice(translated, targeted_lang)
         play_sound(output_file)
         closing = voice_conversion(text, 'en')
-        if "stop" in closing.lower():
+        if isinstance(closing, str) and "stop" in closing.lower():
             print("Exiting Program....")
             dpg.set_value("last_text", "Exiting Program ...")
             time.sleep(0.5)
@@ -78,7 +78,7 @@ def on_button_click():
 dpg.create_context()
 
 
-dpg.create_viewport(title='Real Time Live Translator', width=600, height=600)
+dpg.create_viewport(title='Real Time Live Translator (Created By Ayush)', width=600, height=600)
 
 with dpg.window(tag="Primary Window"):
     with dpg.group() as group1:

@@ -15,7 +15,7 @@ def get_voice_input():
         audio = recognizer.listen(source)
         
     try:
-        text = recognizer.recognize_google(audio)
+        text = recognizer.recognize_google(audio)  # type: ignore[attr-defined]
         print("You said: ", text)
         return text
     
