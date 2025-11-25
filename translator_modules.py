@@ -1,5 +1,7 @@
 import speech_recognition as sr
 import time
+import inspect
+import asyncio
 import googletrans as gt
 from gtts import gTTS
 import pygame
@@ -33,9 +35,45 @@ def voice_conversion(text, targeted_lang):
     if text is None:
         return
     translator = gt.Translator()
-    translation = translator.translate(text, targeted_lang)
-    print("Translation: ", translation.text)
-    return translation.text
+    # Use named parameter for clarity (dest). Some googletrans implementations
+    # expose an async translate() which returns a coroutine. Handle both sync
+    # and async return values.
+    try:
+        maybe_coro = translator.translate(text, dest=targeted_lang)
+    except TypeError:
+        # Fallback if the translator implementation expects positional args
+        maybe_coro = translator.translate(text, targeted_lang)
+
+    # If it's awaitable (a coroutine or Future), wrap it in a small
+    # coroutine so we always pass a proper coroutine object to
+    # asyncio.run / run_coroutine_threadsafe (this avoids type issues).
+    if inspect.isawaitable(maybe_coro):
+        async def _await_and_return(a):
+            return await a
+
+        try:
+            translation = asyncio.run(_await_and_return(maybe_coro))
+        except RuntimeError:
+            # If an event loop is already running in this thread, try
+            # run_coroutine_threadsafe on the running loop as a fallback.
+            try:
+                loop = asyncio.get_event_loop()
+                future = asyncio.run_coroutine_threadsafe(_await_and_return(maybe_coro), loop)
+                translation = future.result()
+            except Exception as e:
+                print(f"Could not run async translation: {e}")
+                return None
+    else:
+        translation = maybe_coro
+
+    # translation is expected to be an object with .text when successful
+    try:
+        print("Translation: ", translation.text)
+        return translation.text
+    except AttributeError:
+        # If translation isn't the expected object, return its string form
+        print("Translation (raw):", translation)
+        return str(translation)
 
 
 def text_to_voice(translated, targeted_lang):
